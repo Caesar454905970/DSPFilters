@@ -57,6 +57,18 @@ jobs:
         run: |
           cmake --install build/android/arm64-v8a/release --config Release
 
+      - name: Remove leading lib prefix from Android outputs
+        run: |
+          find "$GITHUB_WORKSPACE/out/android/arm64-v8a" -type f -name 'libDSPFiltersLib.android*' | while read -r file; do
+            dir="$(dirname "$file")"
+            base="$(basename "$file")"
+            mv "$file" "$dir/${base#lib}"
+          done
+
+      - name: Verify renamed outputs
+        run: |
+          find "$GITHUB_WORKSPACE/out/android/arm64-v8a" -type f -name 'libDSPFiltersLib.android*' -print -quit | (! read)
+
       - name: List output
         run: |
           find "$GITHUB_WORKSPACE/out/android/arm64-v8a" -maxdepth 4 -type f | sort
