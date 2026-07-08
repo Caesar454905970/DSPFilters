@@ -1,0 +1,88 @@
+name: Build DSPFilters Windows x86_64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows-x86_64:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout DSPFilters
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC build environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Configure CMake for Windows x86_64 Debug
+        run: |
+          cmake -S shared -B build/windows/x86_64/debug `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            -DCMAKE_BUILD_TYPE=Debug `
+            -DDSPFILTERS_BUILD_SHARED=ON `
+            -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON `
+            -DCMAKE_INSTALL_PREFIX="${env:GITHUB_WORKSPACE}\out\windows\x86_64"
+        shell: powershell
+
+      - name: Build Debug
+        run: |
+          cmake --build build/windows/x86_64/debug --config Debug --parallel
+        shell: powershell
+
+      - name: Install Debug
+        run: |
+          cmake --install build/windows/x86_64/debug --config Debug
+        shell: powershell
+
+      - name: Configure CMake for Windows x86_64 Release
+        run: |
+          cmake -S shared -B build/windows/x86_64/release `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DDSPFILTERS_BUILD_SHARED=ON `
+            -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON `
+            -DCMAKE_INSTALL_PREFIX="${env:GITHUB_WORKSPACE}\out\windows\x86_64"
+        shell: powershell
+
+      - name: Build Release
+        run: |
+          cmake --build build/windows/x86_64/release --config Release --parallel
+        shell: powershell
+
+      - name: Install Release
+        run: |
+          cmake --install build/windows/x86_64/release --config Release
+        shell: powershell
+
+      - name: Verify expected outputs
+        run: |
+          $expectedFiles = @(
+            "${env:GITHUB_WORKSPACE}\out\windows\x86_64\bin\DSPFiltersLib.windows.template_debug.x86_64.dll",
+            "${env:GITHUB_WORKSPACE}\out\windows\x86_64\lib\DSPFiltersLib.windows.template_debug.x86_64.lib",
+            "${env:GITHUB_WORKSPACE}\out\windows\x86_64\bin\DSPFiltersLib.windows.template_release.x86_64.dll",
+            "${env:GITHUB_WORKSPACE}\out\windows\x86_64\lib\DSPFiltersLib.windows.template_release.x86_64.lib"
+          )
+
+          foreach ($file in $expectedFiles) {
+            if (-not (Test-Path -LiteralPath $file)) {
+              throw "Missing expected output: $file"
+            }
+          }
+        shell: powershell
+
+      - name: List output
+        run: |
+          Get-ChildItem "${env:GITHUB_WORKSPACE}\out\windows\x86_64" -Recurse -File |
+            Sort-Object FullName |
+            ForEach-Object { $_.FullName }
+        shell: powershell
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dspfilters-windows-x86_64
+          path: out/windows/x86_64
